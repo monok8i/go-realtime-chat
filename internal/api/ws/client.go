@@ -92,6 +92,9 @@ func (c *Client) ReadPump(ctx context.Context, onMessage func(ctx context.Contex
 			continue
 		}
 
-		onMessage(ctx, c, payload)
+		if err := onMessage(ctx, c, payload); err != nil {
+			log.Printf("[ws] readPump: onMessage error: %v", err)
+			continue
+		}
 	}
 }
