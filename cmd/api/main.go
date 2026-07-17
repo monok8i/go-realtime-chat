@@ -1,3 +1,7 @@
+// Package main is the entry point for the API server binary.
+//
+// It initialises the Gin HTTP server with WebSocket support,
+// connects to RabbitMQ and Redis, and starts the broadcast listener.
 package main
 
 import (
@@ -15,8 +19,6 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-// main is the application entry point. It initialises the Gin router, registers
-// routes, and starts the HTTP server on port 8080.
 func main() {
 	err := config.Init()
 	if err != nil {

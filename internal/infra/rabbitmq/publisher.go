@@ -6,11 +6,14 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+// RabbitMQPublisher publishes messages to a RabbitMQ queue.
 type RabbitMQPublisher struct {
 	channel *amqp.Channel
 	queue   amqp.Queue
 }
 
+// NewPublisher creates a new publisher connected to the specified queue.
+// The queue is declared as durable if it does not exist.
 func NewPublisher(conn *amqp.Connection, queueName string) (*RabbitMQPublisher, error) {
 	ch, err := conn.Channel()
 	if err != nil {
@@ -23,6 +26,7 @@ func NewPublisher(conn *amqp.Connection, queueName string) (*RabbitMQPublisher, 
 	return &RabbitMQPublisher{channel: ch, queue: q}, nil
 }
 
+// Publish sends a message to the configured queue with content type application/json.
 func (p *RabbitMQPublisher) Publish(ctx context.Context, body []byte) error {
 	return p.channel.PublishWithContext(ctx, "", p.queue.Name, false, false, amqp.Publishing{
 		ContentType: "application/json",

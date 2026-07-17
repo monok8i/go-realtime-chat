@@ -1,3 +1,7 @@
+// Package main is the entry point for the Worker binary.
+//
+// It consumes messages from RabbitMQ and republishes them to Redis PubSub
+// for cross-instance message broadcasting.
 package main
 
 import (
@@ -10,7 +14,6 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-// main is the worker entry point. It consumes messages from queue and send it to storage and redis channel
 func main() {
 	err := config.Init()
 	if err != nil {

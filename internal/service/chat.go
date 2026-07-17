@@ -1,3 +1,4 @@
+// Package service provides the core business logic for the chat system.
 package service
 
 import (
@@ -8,24 +9,30 @@ import (
 	"log"
 )
 
+// ChatService implements the domain.ChatService interface.
+// It orchestrates the flow of messages between WebSocket clients, RabbitMQ, and Redis PubSub.
 type ChatService struct {
 	hub              domain.Hub
 	publisher        domain.QueuePublisher
 	pubsubsubscriber domain.PubSubSubscriber
 }
 
+// NewChatService creates a new ChatService.
 func NewChatService(hub domain.Hub, publisher domain.QueuePublisher, pubsubsubscriber domain.PubSubSubscriber) *ChatService {
 	return &ChatService{hub: hub, publisher: publisher, pubsubsubscriber: pubsubsubscriber}
 }
 
+// AddClient registers a client in the given chat room.
 func (cs *ChatService) AddClient(c domain.Client, chatId string) {
 	cs.hub.AddClient(c, chatId)
 }
 
+// RemoveClient removes a client from its current chat room.
 func (cs *ChatService) RemoveClient(c domain.Client) {
 	cs.hub.RemoveClient(c)
 }
 
+// PublishToBroker marshals the payload to JSON and publishes it to the message broker.
 func (cs *ChatService) PublishToBroker(ctx context.Context, payload domain.Payload) error {
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -42,6 +49,8 @@ func (cs *ChatService) PublishToBroker(ctx context.Context, payload domain.Paylo
 	return nil
 }
 
+// HandleIncomingMessage processes a message received from a WebSocket client.
+// It adds the client to the appropriate chat room and publishes the message to the broker.
 func (cs *ChatService) HandleIncomingMessage(ctx context.Context, c domain.Client, payload domain.Payload) error {
 	cs.AddClient(c, payload.ChatID)
 
@@ -53,6 +62,9 @@ func (cs *ChatService) HandleIncomingMessage(ctx context.Context, c domain.Clien
 	return nil
 }
 
+// BroadcastMessage subscribes to the Redis PubSub channel and broadcasts
+// received messages to all clients in the corresponding chat room.
+// This enables cross-instance message delivery.
 func (cs *ChatService) BroadcastMessage(ctx context.Context) error {
 	out, err := cs.pubsubsubscriber.Subscribe(ctx, config.Redis.PUBSUB_CHANNEL)
 	if err != nil {
@@ -65,10 +77,8 @@ func (cs *ChatService) BroadcastMessage(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case msg := <-out:
-			bytep := msg.Payload
-
 			var payload domain.Payload
-			if err := json.Unmarshal(bytep, &payload); err != nil {
+			if err := json.Unmarshal(msg.Payload, &payload); err != nil {
 				log.Printf("readPump: unmarshal error: %v", err)
 				continue
 			}
@@ -76,5 +86,4 @@ func (cs *ChatService) BroadcastMessage(ctx context.Context) error {
 			cs.hub.Broadcast(payload.ChatID, payload)
 		}
 	}
-
 }

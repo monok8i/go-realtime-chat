@@ -1,3 +1,4 @@
+// Package service provides the core business logic for the chat system.
 package service
 
 import (
@@ -7,20 +8,22 @@ import (
 	"log"
 )
 
+// WorkerService consumes messages from a queue and republishes them to Redis PubSub.
 type WorkerService struct {
 	consumer        domain.QueueConsumer
 	pubsubpublisher domain.PubSubPublisher
-	// repo            domain.MessageRepository
 }
 
+// NewWorkerService creates a new WorkerService.
 func NewWorkerService(consumer domain.QueueConsumer, pubsubpublisher domain.PubSubPublisher) *WorkerService {
 	return &WorkerService{
 		consumer:        consumer,
 		pubsubpublisher: pubsubpublisher,
-		// repo:            repo,
 	}
 }
 
+// Consuming reads messages from the queue and publishes them to Redis PubSub.
+// It acknowledges each message after successful processing.
 func (s *WorkerService) Consuming(ctx context.Context) error {
 	messages, err := s.consumer.Consume(ctx)
 	if err != nil {
@@ -36,22 +39,6 @@ func (s *WorkerService) Consuming(ctx context.Context) error {
 			if !ok {
 				return nil
 			}
-
-			// var payload domain.Payload
-
-			// if err := json.Unmarshal(msg.Body, &payload); err != nil {
-			// 	log.Printf("Consuming: unmarshal error: %v", err)
-			// 	continue
-			// }
-
-			// if err := s.repo.SaveMessage(ctx, domain.Payload{
-			// 	ChatID:  payload.ChatID,
-			// 	UserID:  payload.UserID,
-			// 	Message: payload.Message,
-			// }); err != nil {
-			// 	log.Printf("Consuming: save error: %v", err)
-			// 	continue
-			// }
 
 			if err := s.pubsubpublisher.Publish(ctx, config.Redis.PUBSUB_CHANNEL, msg.Body); err != nil {
 				log.Printf("Consuming: pubsubpublisher error: %v", err)
