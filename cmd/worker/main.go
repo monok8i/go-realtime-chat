@@ -10,6 +10,7 @@ import (
 	"go-realtime-chat/internal/infra/rabbitmq"
 	"go-realtime-chat/internal/infra/redis"
 	"go-realtime-chat/internal/service"
+	"log"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -19,6 +20,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 
 	amqpConn, err := amqp.Dial(config.AMQP.ToURI())
 	if err != nil {

@@ -40,7 +40,7 @@ var upgrader = websocket.Upgrader{
 func (h *ChatHandlerImpl) HandleWebSocket(c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		log.Printf("WebSocket error: %v", err)
+		log.Printf("[handlers] websocket upgrade error: %v", err)
 		return
 	}
 	client := ws.NewClient(conn)

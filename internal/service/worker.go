@@ -41,11 +41,11 @@ func (s *WorkerService) Consuming(ctx context.Context) error {
 			}
 
 			if err := s.pubsubpublisher.Publish(ctx, config.Redis.PUBSUB_CHANNEL, msg.Body); err != nil {
-				log.Printf("Consuming: pubsubpublisher error: %v", err)
+				log.Printf("[worker] consume: publish to redis error: %v", err)
 				continue
 			}
 			if err := msg.Ack(); err != nil {
-				log.Printf("Consuming: ack error: %v", err)
+				log.Printf("[worker] consume: ack error: %v", err)
 				continue
 			}
 		}

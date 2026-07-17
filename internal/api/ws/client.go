@@ -38,12 +38,12 @@ func (c *Client) WritePump(ctx context.Context) {
 			}
 			data, err := json.Marshal(msg)
 			if err != nil {
-				log.Printf("writePump: marshal error: %v", err)
+				log.Printf("[ws] writePump: marshal error: %v", err)
 				continue
 			}
 			err = c.conn.WriteMessage(websocket.TextMessage, data)
 			if err != nil {
-				log.Printf("writePump: write error: %v", err)
+				log.Printf("[ws] writePump: write error: %v", err)
 				return
 			}
 		}
@@ -75,20 +75,20 @@ func (c *Client) Send(payload domain.Payload) bool {
 func (c *Client) ReadPump(ctx context.Context, onMessage func(ctx context.Context, cl domain.Client, payload domain.Payload) error) {
 	defer func() {
 		if err := c.conn.Close(); err != nil {
-			log.Printf("Failed to close websocket connection: %v", err)
+			log.Printf("[ws] close websocket connection: %v", err)
 		}
 	}()
 
 	for {
 		_, data, err := c.conn.ReadMessage()
 		if err != nil {
-			log.Printf("readPump: read error: %v", err)
+			log.Printf("[ws] readPump: read error: %v", err)
 			return
 		}
 
 		var payload domain.Payload
 		if err := json.Unmarshal(data, &payload); err != nil {
-			log.Printf("readPump: unmarshal error: %v", err)
+			log.Printf("[ws] readPump: unmarshal error: %v", err)
 			continue
 		}
 

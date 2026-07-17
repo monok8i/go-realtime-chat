@@ -13,6 +13,7 @@ import (
 	"go-realtime-chat/internal/infra/rabbitmq"
 	"go-realtime-chat/internal/infra/redis"
 	"go-realtime-chat/internal/service"
+	"log"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -24,6 +25,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

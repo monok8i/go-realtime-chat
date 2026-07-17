@@ -64,7 +64,7 @@ func (h *Hub) Broadcast(chatId string, payload domain.Payload) {
 
 	for client := range h.chats[chatId] {
 		if !client.Send(payload) {
-			log.Printf("broadcast: client buffer full, skipping")
+			log.Printf("[hub] broadcast: client buffer full, skipping")
 		}
 	}
 }

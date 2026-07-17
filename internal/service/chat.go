@@ -36,13 +36,13 @@ func (cs *ChatService) RemoveClient(c domain.Client) {
 func (cs *ChatService) PublishToBroker(ctx context.Context, payload domain.Payload) error {
 	body, err := json.Marshal(payload)
 	if err != nil {
-		log.Printf("PublishToBroker: marshal error: %v", err)
+		log.Printf("[chat] publish to broker: marshal error: %v", err)
 		return err
 	}
 
 	err = cs.publisher.Publish(ctx, body)
 	if err != nil {
-		log.Printf("PublishToBroker: amqp error: %v", err)
+		log.Printf("[chat] publish to broker: amqp error: %v", err)
 		return err
 	}
 
@@ -55,7 +55,7 @@ func (cs *ChatService) HandleIncomingMessage(ctx context.Context, c domain.Clien
 	cs.AddClient(c, payload.ChatID)
 
 	if err := cs.PublishToBroker(ctx, payload); err != nil {
-		log.Printf("HandleIncomingMessage: failed to send message to broker: %v", err)
+		log.Printf("[chat] handle incoming message: publish to broker error: %v", err)
 		return err
 	}
 
@@ -68,7 +68,7 @@ func (cs *ChatService) HandleIncomingMessage(ctx context.Context, c domain.Clien
 func (cs *ChatService) BroadcastMessage(ctx context.Context) error {
 	out, err := cs.pubsubsubscriber.Subscribe(ctx, config.Redis.PUBSUB_CHANNEL)
 	if err != nil {
-		log.Printf("Failed to subscribe to redis channel: %v", err)
+		log.Printf("[chat] subscribe to redis channel: %v", err)
 		return err
 	}
 
@@ -79,7 +79,7 @@ func (cs *ChatService) BroadcastMessage(ctx context.Context) error {
 		case msg := <-out:
 			var payload domain.Payload
 			if err := json.Unmarshal(msg.Payload, &payload); err != nil {
-				log.Printf("readPump: unmarshal error: %v", err)
+				log.Printf("[chat] broadcast message: unmarshal error: %v", err)
 				continue
 			}
 
