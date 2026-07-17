@@ -17,7 +17,7 @@ type Client interface {
 type Hub interface {
 	AddClient(client Client, chatId string)
 	RemoveClient(client Client)
-	Broadcast(chatId string, payload Payload)
+	Broadcast(payload Payload)
 }
 
 // ChatService defines business logic for handling chat messages.

@@ -83,7 +83,7 @@ func (cs *ChatService) BroadcastMessage(ctx context.Context) error {
 				continue
 			}
 
-			cs.hub.Broadcast(payload.ChatID, payload)
+			cs.hub.Broadcast(payload)
 		}
 	}
 }

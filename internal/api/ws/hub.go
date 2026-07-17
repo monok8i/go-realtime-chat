@@ -58,9 +58,11 @@ func (h *Hub) RemoveClient(c domain.Client) {
 
 // Broadcast sends a payload to all clients in the specified chat room.
 // Clients with full send buffers are skipped and logged.
-func (h *Hub) Broadcast(chatId string, payload domain.Payload) {
+func (h *Hub) Broadcast(payload domain.Payload) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
+
+	chatId := payload.ChatID
 
 	for client := range h.chats[chatId] {
 		if !client.Send(payload) {
