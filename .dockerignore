@@ -1,0 +1,10 @@
+.git/
+.gitignore
+.env
+README.md
+LICENSE
+Dockerfile
+docker-compose.yml
+atlas.hcl
+sqlc.yaml
+wsclient

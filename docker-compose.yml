@@ -1,0 +1,144 @@
+name: realtime-chat
+
+networks:
+  realtime-chat-network:
+    name: realtime-chat-network
+    driver: bridge
+
+services:
+  postgres-realtime-chat:
+    image: postgres:16-alpine
+    container_name: postgres-realtime-chat
+    restart: no
+    env_file:
+      - .env
+
+    ports:
+      - "${POSTGRES_PORT}:${POSTGRES_PORT}"
+
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready --username=${POSTGRES_USER} --dbname=${POSTGRES_DB}" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+    networks:
+      - realtime-chat-network
+
+  redis-realtime-chat:
+    image: redis:7-alpine
+    container_name: redis-realtime-chat
+    restart: no
+
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+    networks:
+      - realtime-chat-network
+
+  rabbitmq-realtime-chat:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq-realtime-chat
+    restart: no
+    env_file:
+      - .env
+
+    ports:
+      - "${AMQP_PORT}:${AMQP_PORT}"
+      - "15672:15672"
+
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+    networks:
+      - realtime-chat-network
+
+  migrate-realtime-chat:
+    image: arigaio/atlas:latest
+    container_name: migrate-realtime-chat
+    restart: no
+
+    volumes:
+      - ./internal/infra/postgres/migrations/:/migrations/
+
+    networks:
+      - realtime-chat-network
+
+    depends_on:
+      postgres-realtime-chat:
+        condition: service_healthy
+
+    command:
+      - "migrate"
+      - "apply"
+      - "--dir"
+      - "file:///migrations"
+      - "--url"
+      - "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-realtime-chat:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=disable"
+
+  api-realtime-chat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: api
+
+    container_name: api-realtime-chat
+    restart: no
+    env_file:
+      - .env
+
+    environment:
+      POSTGRES_HOST: "postgres-realtime-chat"
+      REDIS_HOST: "redis-realtime-chat"
+      AMQP_HOST: "rabbitmq-realtime-chat"
+
+    ports:
+      - "${API_PORT}:${API_PORT}"
+
+    networks:
+      - realtime-chat-network
+
+    depends_on:
+      postgres-realtime-chat:
+        condition: service_healthy
+      redis-realtime-chat:
+        condition: service_healthy
+      rabbitmq-realtime-chat:
+        condition: service_healthy
+      migrate-realtime-chat:
+        condition: service_completed_successfully
+
+  worker-realtime-chat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: worker
+
+    container_name: worker-realtime-chat
+    restart: no
+    env_file:
+      - .env
+
+    environment:
+      POSTGRES_HOST: "postgres-realtime-chat"
+      REDIS_HOST: "redis-realtime-chat"
+      AMQP_HOST: "rabbitmq-realtime-chat"
+
+    networks:
+      - realtime-chat-network
+
+    depends_on:
+      postgres-realtime-chat:
+        condition: service_healthy
+      redis-realtime-chat:
+        condition: service_healthy
+      rabbitmq-realtime-chat:
+        condition: service_healthy
+      migrate-realtime-chat:
+        condition: service_completed_successfully
