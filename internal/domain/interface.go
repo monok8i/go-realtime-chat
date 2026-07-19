@@ -26,6 +26,7 @@ type ChatService interface {
 	RemoveClient(c Client)
 	HandleIncomingMessage(ctx context.Context, c Client, payload Payload) error
 	PublishToBroker(ctx context.Context, payload Payload) error
+	GetMessagesByChat(ctx context.Context, chatID string) ([]Payload, error)
 }
 
 // QueuePublisher sends messages to a message broker queue.
@@ -50,5 +51,6 @@ type PubSubSubscriber interface {
 
 // MessageRepository persists chat messages to a database.
 type MessageRepository interface {
-	SaveMessage(ctx context.Context, payload Payload) error
+	CreateNewMessage(ctx context.Context, payload Payload) error
+	GetMessagesByChat(ctx context.Context, chatID string) ([]Payload, error)
 }

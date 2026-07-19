@@ -10,6 +10,8 @@ import (
 	"go-realtime-chat/internal/api/handlers"
 	"go-realtime-chat/internal/api/ws"
 	"go-realtime-chat/internal/config"
+	"go-realtime-chat/internal/infra/postgres"
+	queries "go-realtime-chat/internal/infra/postgres/gen"
 	"go-realtime-chat/internal/infra/rabbitmq"
 	"go-realtime-chat/internal/infra/redis"
 	"go-realtime-chat/internal/service"
@@ -49,7 +51,14 @@ func main() {
 	rcl := redis.NewRedisClient()
 	pubsubSubscriber := redis.NewRedisPubSubSubscriber(rcl)
 
-	chatService := service.NewChatService(hub, queuePublisher, pubsubSubscriber)
+	dbPool, err := postgres.NewPostgresPool(ctx, config.Postgres.ToURI())
+	if err != nil {
+		panic(err)
+	}
+	dbQueries := queries.New(dbPool)
+	messageRepository := postgres.NewMessageRepository(dbQueries)
+
+	chatService := service.NewChatService(hub, queuePublisher, pubsubSubscriber, messageRepository)
 	chatHandler := handlers.NewChatHandler(chatService)
 
 	api.RegisterRoutes(r, chatHandler)

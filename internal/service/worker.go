@@ -3,6 +3,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"go-realtime-chat/internal/config"
 	"go-realtime-chat/internal/domain"
 	"log"
@@ -12,13 +13,15 @@ import (
 type WorkerService struct {
 	consumer        domain.QueueConsumer
 	pubsubpublisher domain.PubSubPublisher
+	repo            domain.MessageRepository
 }
 
 // NewWorkerService creates a new WorkerService.
-func NewWorkerService(consumer domain.QueueConsumer, pubsubpublisher domain.PubSubPublisher) *WorkerService {
+func NewWorkerService(consumer domain.QueueConsumer, pubsubpublisher domain.PubSubPublisher, repo domain.MessageRepository) *WorkerService {
 	return &WorkerService{
 		consumer:        consumer,
 		pubsubpublisher: pubsubpublisher,
+		repo:            repo,
 	}
 }
 
@@ -38,6 +41,20 @@ func (s *WorkerService) Consuming(ctx context.Context) error {
 		case msg, ok := <-messages:
 			if !ok {
 				return nil
+			}
+
+			var payload domain.Payload
+			if err := json.Unmarshal(msg.Body, &payload); err != nil {
+				log.Printf("[worker] consume: unmarshal error: %v", err)
+				if err := msg.Ack(); err != nil {
+					log.Printf("[worker] consume: ack error: %v", err)
+				}
+				continue
+			}
+
+			if err := s.repo.CreateNewMessage(ctx, payload); err != nil {
+				log.Printf("[worker] consume: save message error: %v", err)
+				continue
 			}
 
 			if err := s.pubsubpublisher.Publish(ctx, config.Redis.PUBSUB_CHANNEL, msg.Body); err != nil {

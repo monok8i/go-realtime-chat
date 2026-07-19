@@ -15,11 +15,12 @@ type ChatService struct {
 	hub              domain.Hub
 	publisher        domain.QueuePublisher
 	pubsubsubscriber domain.PubSubSubscriber
+	repo             domain.MessageRepository
 }
 
 // NewChatService creates a new ChatService.
-func NewChatService(hub domain.Hub, publisher domain.QueuePublisher, pubsubsubscriber domain.PubSubSubscriber) *ChatService {
-	return &ChatService{hub: hub, publisher: publisher, pubsubsubscriber: pubsubsubscriber}
+func NewChatService(hub domain.Hub, publisher domain.QueuePublisher, pubsubsubscriber domain.PubSubSubscriber, repo domain.MessageRepository) *ChatService {
+	return &ChatService{hub: hub, publisher: publisher, pubsubsubscriber: pubsubsubscriber, repo: repo}
 }
 
 // AddClient registers a client in the given chat room.
@@ -60,6 +61,11 @@ func (cs *ChatService) HandleIncomingMessage(ctx context.Context, c domain.Clien
 	}
 
 	return nil
+}
+
+// GetMessagesByChat returns all messages for a given chat ID.
+func (cs *ChatService) GetMessagesByChat(ctx context.Context, chatID string) ([]domain.Payload, error) {
+	return cs.repo.GetMessagesByChat(ctx, chatID)
 }
 
 // BroadcastMessage subscribes to the Redis PubSub channel and broadcasts

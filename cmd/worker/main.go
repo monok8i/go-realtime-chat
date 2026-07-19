@@ -7,6 +7,8 @@ package main
 import (
 	"context"
 	"go-realtime-chat/internal/config"
+	"go-realtime-chat/internal/infra/postgres"
+	"go-realtime-chat/internal/infra/postgres/gen"
 	"go-realtime-chat/internal/infra/rabbitmq"
 	"go-realtime-chat/internal/infra/redis"
 	"go-realtime-chat/internal/service"
@@ -39,7 +41,16 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	workerService := service.NewWorkerService(consumer, pubsubpublisher)
+	pool, err := postgres.NewPostgresPool(ctx, config.Postgres.ToURI())
+	if err != nil {
+		panic(err)
+	}
+	defer pool.Close()
+
+	q := gen.New(pool)
+	repo := postgres.NewMessageRepository(q)
+
+	workerService := service.NewWorkerService(consumer, pubsubpublisher, repo)
 
 	go workerService.Consuming(ctx)
 }
