@@ -3,7 +3,7 @@ package domain
 
 // Payload represents a chat message exchanged between clients through the system.
 type Payload struct {
-	UserID  int    `json:"user_id"`
+	UserID  int32  `json:"user_id"`
 	ChatID  string `json:"chat_id"`
 	Message string `json:"message"`
 }

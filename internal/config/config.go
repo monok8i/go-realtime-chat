@@ -53,10 +53,14 @@ func (c *AmqpConfig) ToURI() string {
 }
 
 var (
-	API      APIConfig
-	AMQP     AmqpConfig
+	// API holds the HTTP server configuration.
+	API APIConfig
+	// AMQP holds the RabbitMQ connection configuration.
+	AMQP AmqpConfig
+	// Postgres holds the PostgreSQL connection configuration.
 	Postgres PostgresConfig
-	Redis    RedisConfig
+	// Redis holds the Redis client configuration.
+	Redis RedisConfig
 )
 
 // Init loads all configuration from environment variables with defaults.

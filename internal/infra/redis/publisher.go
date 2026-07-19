@@ -7,19 +7,19 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// RedisPubSubPublisher publishes messages to a Redis PubSub channel.
-type RedisPubSubPublisher struct {
-	Client *redis.Client
+// PubSubPublisher publishes messages to a Redis PubSub channel.
+type PubSubPublisher struct {
+	client *redis.Client
 }
 
-// NewRedisPubSubPublisher creates a new Redis PubSub publisher.
-func NewRedisPubSubPublisher(c *redis.Client) *RedisPubSubPublisher {
-	return &RedisPubSubPublisher{Client: c}
+// NewPubSubPublisher creates a new Redis PubSub publisher.
+func NewPubSubPublisher(c *redis.Client) *PubSubPublisher {
+	return &PubSubPublisher{client: c}
 }
 
 // Publish sends a message to the specified Redis PubSub channel.
-func (r RedisPubSubPublisher) Publish(ctx context.Context, channel string, body []byte) error {
-	if err := r.Client.Publish(ctx, channel, body).Err(); err != nil {
+func (r *PubSubPublisher) Publish(ctx context.Context, channel string, body []byte) error {
+	if err := r.client.Publish(ctx, channel, body).Err(); err != nil {
 		log.Printf("[redis] publish to channel: %v", err)
 		return err
 	}
