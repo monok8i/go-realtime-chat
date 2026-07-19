@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"sync"
 	"syscall"
 	"time"
 
@@ -45,6 +46,7 @@ func main() {
 	}
 
 	rcl := redis.NewRedisClient()
+	defer func() { _ = rcl.Close() }()
 	pubsubSubscriber := redis.NewPubSubSubscriber(rcl)
 
 	dbPool, err := postgres.NewPostgresPool(context.Background(), config.Postgres.ToURI())
@@ -72,22 +74,31 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	var wg sync.WaitGroup
+
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		if err := chatService.BroadcastMessage(ctx); err != nil {
 			log.Printf("[api] broadcast exited: %v", err)
 		}
 	}()
 
+	errCh := make(chan error, 1)
 	go func() {
 		log.Printf("[api] listening on %s", addr)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("[api] listen error: %v", err)
+			errCh <- err
 		}
 	}()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
+	select {
+	case <-quit:
+	case err := <-errCh:
+		log.Printf("[api] listen error: %v", err)
+	}
 
 	log.Print("[api] shutting down...")
 
@@ -99,4 +110,5 @@ func main() {
 	}
 
 	cancel()
+	wg.Wait()
 }

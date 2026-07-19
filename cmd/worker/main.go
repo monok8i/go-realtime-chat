@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -35,6 +36,7 @@ func main() {
 	}
 
 	rcl := redis.NewRedisClient()
+	defer func() { _ = rcl.Close() }()
 	pubsubPublisher := redis.NewPubSubPublisher(rcl)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -51,7 +53,10 @@ func main() {
 
 	workerService := service.NewWorkerService(consumer, pubsubPublisher, repo)
 
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		if err := workerService.Consuming(ctx); err != nil {
 			log.Printf("[worker] consuming exited: %v", err)
 		}
@@ -65,4 +70,5 @@ func main() {
 
 	log.Print("[worker] shutting down...")
 	cancel()
+	wg.Wait()
 }
