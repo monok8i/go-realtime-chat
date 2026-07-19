@@ -1,11 +1,8 @@
-// Package main is the entry point for the API server binary.
-//
-// It initialises the Gin HTTP server with WebSocket support,
-// connects to RabbitMQ and Redis, and starts the broadcast listener.
 package main
 
 import (
 	"context"
+	"errors"
 	"go-realtime-chat/internal/api"
 	"go-realtime-chat/internal/api/handlers"
 	"go-realtime-chat/internal/api/ws"
@@ -16,24 +13,23 @@ import (
 	"go-realtime-chat/internal/infra/redis"
 	"go-realtime-chat/internal/service"
 	"log"
+	"net/http"
+	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 func main() {
-	err := config.Init()
-	if err != nil {
+	if err := config.Init(); err != nil {
 		panic(err)
 	}
 
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	r := gin.Default()
 
 	hub := ws.NewHub()
 
@@ -41,7 +37,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	defer amqpConn.Close()
+	defer func() { _ = amqpConn.Close() }()
 
 	queuePublisher, err := rabbitmq.NewPublisher(amqpConn, "messages:new")
 	if err != nil {
@@ -49,21 +45,58 @@ func main() {
 	}
 
 	rcl := redis.NewRedisClient()
-	pubsubSubscriber := redis.NewRedisPubSubSubscriber(rcl)
+	pubsubSubscriber := redis.NewPubSubSubscriber(rcl)
 
-	dbPool, err := postgres.NewPostgresPool(ctx, config.Postgres.ToURI())
+	dbPool, err := postgres.NewPostgresPool(context.Background(), config.Postgres.ToURI())
 	if err != nil {
 		panic(err)
 	}
+	defer dbPool.Close()
+
 	dbQueries := queries.New(dbPool)
 	messageRepository := postgres.NewMessageRepository(dbQueries)
 
 	chatService := service.NewChatService(hub, queuePublisher, pubsubSubscriber, messageRepository)
 	chatHandler := handlers.NewChatHandler(chatService)
 
-	api.RegisterRoutes(r, chatHandler)
+	ginRouter := gin.Default()
+	api.RegisterRoutes(ginRouter, chatHandler)
 
-	go chatService.BroadcastMessage(ctx)
+	addr := ":" + strconv.Itoa(config.API.API_PORT)
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           ginRouter,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
 
-	_ = r.Run(":" + strconv.Itoa(config.API.API_PORT))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() {
+		if err := chatService.BroadcastMessage(ctx); err != nil {
+			log.Printf("[api] broadcast exited: %v", err)
+		}
+	}()
+
+	go func() {
+		log.Printf("[api] listening on %s", addr)
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("[api] listen error: %v", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Print("[api] shutting down...")
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
+
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Printf("[api] server forced to shutdown: %v", err)
+	}
+
+	cancel()
 }
