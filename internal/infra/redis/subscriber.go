@@ -37,7 +37,11 @@ func (s *PubSubSubscriber) Subscribe(ctx context.Context, channel string) (<-cha
 				if !ok {
 					return
 				}
-				out <- &domain.IncomingPubSubMessage{Payload: []byte(msg.Payload)}
+				select {
+				case out <- &domain.IncomingPubSubMessage{Payload: []byte(msg.Payload)}:
+				case <-ctx.Done():
+					return
+				}
 			}
 		}
 	}()

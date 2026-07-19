@@ -103,7 +103,10 @@ func (cs *ChatService) BroadcastMessage(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return nil
-		case msg := <-out:
+		case msg, ok := <-out:
+			if !ok {
+				return nil
+			}
 			var payload domain.Payload
 			if err := json.Unmarshal(msg.Payload, &payload); err != nil {
 				log.Printf("[chat] broadcast message: unmarshal error: %v", err)
