@@ -1,11 +1,31 @@
 // Package domain defines the core domain types and interfaces for the chat system.
 package domain
 
+import "time"
+
 // Payload represents a chat message exchanged between clients through the system.
 type Payload struct {
 	UserID  int32  `json:"user_id"`
 	ChatID  string `json:"chat_id"`
 	Message string `json:"message"`
+}
+
+// MessageResponse represents a single message returned by the API.
+type MessageResponse struct {
+	ID        int64     `json:"id"`
+	UserID    int32     `json:"user_id"`
+	ChatID    string    `json:"chat_id"`
+	Text      string    `json:"text"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// GetMessagesResponse is the paginated response for the messages endpoint.
+type GetMessagesResponse struct {
+	ChatID   string            `json:"chat_id"`
+	Messages []MessageResponse `json:"messages"`
+	Limit    int               `json:"limit"`
+	Offset   int               `json:"offset"`
+	Total    int               `json:"total"`
 }
 
 // IncomingBrokerMessage wraps a message received from the message broker (RabbitMQ).
