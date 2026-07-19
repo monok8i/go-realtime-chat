@@ -23,6 +23,20 @@ type AmqpConfig struct {
 	AMQP_PORT     int
 }
 
+// PostgresConfig holds the PostgreSQL connection configuration.
+type PostgresConfig struct {
+	POSTGRES_USER     string
+	POSTGRES_PASSWORD string
+	POSTGRES_DB       string
+	POSTGRES_HOST     string
+	POSTGRES_PORT     int
+}
+
+// ToURI returns the PostgreSQL connection string in URI format.
+func (c *PostgresConfig) ToURI() string {
+	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s", c.POSTGRES_USER, c.POSTGRES_PASSWORD, c.POSTGRES_HOST, c.POSTGRES_PORT, c.POSTGRES_DB)
+}
+
 // RedisConfig holds the Redis client configuration.
 type RedisConfig struct {
 	REDIS_PORT        int
@@ -39,9 +53,10 @@ func (c *AmqpConfig) ToURI() string {
 }
 
 var (
-	API   APIConfig
-	AMQP  AmqpConfig
-	Redis RedisConfig
+	API      APIConfig
+	AMQP     AmqpConfig
+	Postgres PostgresConfig
+	Redis    RedisConfig
 )
 
 // Init loads all configuration from environment variables with defaults.
@@ -59,6 +74,12 @@ func Init() error {
 	Redis.REDIS_DB = getEnvInt("REDIS_DB", 0)
 	Redis.REDIS_MAX_RETRIES = getEnvInt("REDIS_MAX_RETRIES", 3)
 	Redis.PUBSUB_CHANNEL = getEnv("PUBSUB_CHANNEL", "messages:new")
+
+	Postgres.POSTGRES_USER = getEnv("POSTGRES_USER", "postgres")
+	Postgres.POSTGRES_PASSWORD = getEnv("POSTGRES_PASSWORD", "postgres")
+	Postgres.POSTGRES_DB = getEnv("POSTGRES_DB", "chat")
+	Postgres.POSTGRES_HOST = getEnv("POSTGRES_HOST", "localhost")
+	Postgres.POSTGRES_PORT = getEnvInt("POSTGRES_PORT", 5432)
 
 	return nil
 }
