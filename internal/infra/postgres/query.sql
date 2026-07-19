@@ -6,4 +6,5 @@ RETURNING *;
 -- name: GetMessagesByChat :many
 SELECT * FROM messages
 WHERE chat_id = $1
-ORDER BY id;
+ORDER BY id
+LIMIT $2 OFFSET $3;

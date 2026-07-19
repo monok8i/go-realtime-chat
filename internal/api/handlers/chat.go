@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"strconv"
 
 	"go-realtime-chat/internal/api/ws"
 	"go-realtime-chat/internal/domain"
@@ -54,4 +55,43 @@ func (h *ChatHandlerImpl) HandleWebSocket(c *gin.Context) {
 		h.service.RemoveClient(client)
 		cancel()
 	}()
+}
+
+// GetMessagesByChat returns paginated messages for the specified chat ID.
+// Query params: limit (default 50), offset (default 0).
+func (h *ChatHandlerImpl) GetMessagesByChat(c *gin.Context) {
+	chatID := c.Param("chat_id")
+	if chatID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "chat_id is required"})
+		return
+	}
+
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	if err != nil || limit < 1 {
+		limit = 50
+	}
+
+	offset, err := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	if err != nil || offset < 0 {
+		offset = 0
+	}
+
+	msgs, err := h.service.GetMessagesByChat(c.Request.Context(), chatID, limit, offset)
+	if err != nil {
+		log.Printf("[handlers] get messages: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get messages"})
+		return
+	}
+
+	if msgs == nil {
+		msgs = []domain.Payload{}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"chat_id":  chatID,
+		"messages": msgs,
+		"limit":    limit,
+		"offset":   offset,
+		"total":    len(msgs),
+	})
 }

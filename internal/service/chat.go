@@ -63,9 +63,9 @@ func (cs *ChatService) HandleIncomingMessage(ctx context.Context, c domain.Clien
 	return nil
 }
 
-// GetMessagesByChat returns all messages for a given chat ID.
-func (cs *ChatService) GetMessagesByChat(ctx context.Context, chatID string) ([]domain.Payload, error) {
-	return cs.repo.GetMessagesByChat(ctx, chatID)
+// GetMessagesByChat returns messages for a given chat ID with pagination.
+func (cs *ChatService) GetMessagesByChat(ctx context.Context, chatID string, limit, offset int) ([]domain.Payload, error) {
+	return cs.repo.GetMessagesByChat(ctx, chatID, limit, offset)
 }
 
 // BroadcastMessage subscribes to the Redis PubSub channel and broadcasts

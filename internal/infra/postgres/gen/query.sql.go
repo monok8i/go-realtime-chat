@@ -38,10 +38,17 @@ const getMessagesByChat = `-- name: GetMessagesByChat :many
 SELECT id, user_id, chat_id, text, created_at FROM messages
 WHERE chat_id = $1
 ORDER BY id
+LIMIT $2 OFFSET $3
 `
 
-func (q *Queries) GetMessagesByChat(ctx context.Context, chatID string) ([]Message, error) {
-	rows, err := q.db.Query(ctx, getMessagesByChat, chatID)
+type GetMessagesByChatParams struct {
+	ChatID string
+	Limit  int32
+	Offset int32
+}
+
+func (q *Queries) GetMessagesByChat(ctx context.Context, arg GetMessagesByChatParams) ([]Message, error) {
+	rows, err := q.db.Query(ctx, getMessagesByChat, arg.ChatID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
