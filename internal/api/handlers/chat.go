@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"go-realtime-chat/internal/api/ws"
-	"go-realtime-chat/internal/domain"
+	"go-realtime-chat/internal/service"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -15,12 +15,12 @@ import (
 
 // ChatHandlerImpl handles HTTP and WebSocket requests for the chat application.
 type ChatHandlerImpl struct {
-	service domain.ChatService
+	svc *service.ChatService
 }
 
 // NewChatHandler creates a new ChatHandlerImpl with the given chat service.
-func NewChatHandler(service domain.ChatService) *ChatHandlerImpl {
-	return &ChatHandlerImpl{service: service}
+func NewChatHandler(svc *service.ChatService) *ChatHandlerImpl {
+	return &ChatHandlerImpl{svc: svc}
 }
 
 // Health responds with a simple health check status.
@@ -51,8 +51,8 @@ func (h *ChatHandlerImpl) HandleWebSocket(c *gin.Context) {
 	go client.WritePump(ctx)
 
 	go func() {
-		client.ReadPump(ctx, h.service.HandleIncomingMessage)
-		h.service.RemoveClient(client)
+		client.ReadPump(ctx, h.svc.HandleIncomingMessage)
+		h.svc.RemoveClient(client)
 		cancel()
 	}()
 }
@@ -76,22 +76,12 @@ func (h *ChatHandlerImpl) GetMessagesByChat(c *gin.Context) {
 		offset = 0
 	}
 
-	msgs, err := h.service.GetMessagesByChat(c.Request.Context(), chatID, limit, offset)
+	resp, err := h.svc.GetMessagesByChat(c.Request.Context(), chatID, limit, offset)
 	if err != nil {
 		log.Printf("[handlers] get messages: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get messages"})
 		return
 	}
 
-	if msgs == nil {
-		msgs = []domain.Payload{}
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"chat_id":  chatID,
-		"messages": msgs,
-		"limit":    limit,
-		"offset":   offset,
-		"total":    len(msgs),
-	})
+	c.JSON(http.StatusOK, resp)
 }

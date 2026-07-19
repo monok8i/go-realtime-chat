@@ -9,15 +9,19 @@ import (
 	"log"
 )
 
+type messageRepository interface {
+	CreateNewMessage(ctx context.Context, payload domain.Payload) error
+}
+
 // WorkerService consumes messages from a queue and republishes them to Redis PubSub.
 type WorkerService struct {
 	consumer        domain.QueueConsumer
 	pubsubpublisher domain.PubSubPublisher
-	repo            domain.MessageRepository
+	repo            messageRepository
 }
 
 // NewWorkerService creates a new WorkerService.
-func NewWorkerService(consumer domain.QueueConsumer, pubsubpublisher domain.PubSubPublisher, repo domain.MessageRepository) *WorkerService {
+func NewWorkerService(consumer domain.QueueConsumer, pubsubpublisher domain.PubSubPublisher, repo messageRepository) *WorkerService {
 	return &WorkerService{
 		consumer:        consumer,
 		pubsubpublisher: pubsubpublisher,

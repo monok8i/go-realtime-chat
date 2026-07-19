@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"go-realtime-chat/internal/config"
 	"go-realtime-chat/internal/domain"
+	"go-realtime-chat/internal/infra/postgres"
 	"log"
 )
 
@@ -15,11 +16,11 @@ type ChatService struct {
 	hub              domain.Hub
 	publisher        domain.QueuePublisher
 	pubsubsubscriber domain.PubSubSubscriber
-	repo             domain.MessageRepository
+	repo             *postgres.MessageRepository
 }
 
 // NewChatService creates a new ChatService.
-func NewChatService(hub domain.Hub, publisher domain.QueuePublisher, pubsubsubscriber domain.PubSubSubscriber, repo domain.MessageRepository) *ChatService {
+func NewChatService(hub domain.Hub, publisher domain.QueuePublisher, pubsubsubscriber domain.PubSubSubscriber, repo *postgres.MessageRepository) *ChatService {
 	return &ChatService{hub: hub, publisher: publisher, pubsubsubscriber: pubsubsubscriber, repo: repo}
 }
 
@@ -63,9 +64,29 @@ func (cs *ChatService) HandleIncomingMessage(ctx context.Context, c domain.Clien
 	return nil
 }
 
-// GetMessagesByChat returns messages for a given chat ID with pagination.
-func (cs *ChatService) GetMessagesByChat(ctx context.Context, chatID string, limit, offset int) ([]domain.Payload, error) {
-	return cs.repo.GetMessagesByChat(ctx, chatID, limit, offset)
+// GetMessagesByChat returns paginated messages for a given chat ID.
+func (cs *ChatService) GetMessagesByChat(ctx context.Context, chatID string, limit, offset int) (*domain.GetMessagesResponse, error) {
+	msgs, err := cs.repo.GetMessagesByChat(ctx, chatID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := &domain.GetMessagesResponse{
+		ChatID: chatID,
+		Limit:  limit,
+		Offset: offset,
+		Total:  len(msgs),
+	}
+	for _, m := range msgs {
+		resp.Messages = append(resp.Messages, domain.MessageResponse{
+			ID:        m.ID,
+			UserID:    m.UserID,
+			ChatID:    m.ChatID,
+			Text:      m.Text,
+			CreatedAt: m.CreatedAt.Time,
+		})
+	}
+	return resp, nil
 }
 
 // BroadcastMessage subscribes to the Redis PubSub channel and broadcasts
