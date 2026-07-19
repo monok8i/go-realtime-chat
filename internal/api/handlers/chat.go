@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"regexp"
 	"strconv"
 
 	"go-realtime-chat/internal/api/ws"
@@ -12,6 +13,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
+
+var chatIDPattern = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,64}$`)
 
 // ChatHandlerImpl handles HTTP and WebSocket requests for the chat application.
 type ChatHandlerImpl struct {
@@ -52,23 +55,28 @@ func (h *ChatHandlerImpl) HandleWebSocket(c *gin.Context) {
 
 	go func() {
 		client.ReadPump(ctx, h.svc.HandleIncomingMessage)
-		h.svc.RemoveClient(client)
 		cancel()
+		h.svc.RemoveClient(client)
 	}()
 }
 
+const maxLimit = 1000
+
 // GetMessagesByChat returns paginated messages for the specified chat ID.
-// Query params: limit (default 50), offset (default 0).
+// Query params: limit (default 50, max 1000), offset (default 0).
 func (h *ChatHandlerImpl) GetMessagesByChat(c *gin.Context) {
 	chatID := c.Param("chat_id")
-	if chatID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "chat_id is required"})
+	if !chatIDPattern.MatchString(chatID) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid chat_id"})
 		return
 	}
 
 	limit, err := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	if err != nil || limit < 1 {
 		limit = 50
+	}
+	if limit > maxLimit {
+		limit = maxLimit
 	}
 
 	offset, err := strconv.Atoi(c.DefaultQuery("offset", "0"))

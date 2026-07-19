@@ -57,6 +57,9 @@ func main() {
 				return
 			}
 		}
+		if err := scanner.Err(); err != nil {
+			log.Printf("stdin error: %v", err)
+		}
 	}()
 
 	quit := make(chan os.Signal, 1)
