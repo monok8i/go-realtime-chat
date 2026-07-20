@@ -1,20 +1,18 @@
+// Package handlers provides HTTP and WebSocket request handlers for the chat API.
 package handlers
 
 import (
 	"context"
 	"log"
 	"net/http"
-	"regexp"
-	"strconv"
 
 	"go-realtime-chat/internal/api/ws"
+	"go-realtime-chat/internal/domain"
 	"go-realtime-chat/internal/service"
 
-	"github.com/gin-gonic/gin"
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/gorilla/websocket"
 )
-
-var chatIDPattern = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,64}$`)
 
 // ChatHandlerImpl handles HTTP and WebSocket requests for the chat application.
 type ChatHandlerImpl struct {
@@ -26,9 +24,53 @@ func NewChatHandler(svc *service.ChatService) *ChatHandlerImpl {
 	return &ChatHandlerImpl{svc: svc}
 }
 
+// HealthOutput is the response body for the health endpoint.
+type HealthOutput struct {
+	Body struct {
+		Status string `json:"status"`
+	}
+}
+
 // Health responds with a simple health check status.
-func Health(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+func (h *ChatHandlerImpl) Health(ctx context.Context, input *struct{}) (*HealthOutput, error) {
+	resp := &HealthOutput{}
+	resp.Body.Status = "ok"
+	return resp, nil
+}
+
+// GetMessagesInput is the request parameters for retrieving chat messages.
+type GetMessagesInput struct {
+	ChatID string `path:"chat_id" maxLength:"64"`
+	Limit  int    `query:"limit" minimum:"1" maximum:"1000"`
+	Offset int    `query:"offset" minimum:"0"`
+}
+
+// GetMessagesOutput is the paginated response for the messages endpoint.
+type GetMessagesOutput struct {
+	Body domain.GetMessagesResponse
+}
+
+// GetMessagesByChat returns paginated messages for the specified chat ID.
+func (h *ChatHandlerImpl) GetMessagesByChat(ctx context.Context, input *GetMessagesInput) (*GetMessagesOutput, error) {
+	limit := input.Limit
+	if limit < 1 {
+		limit = 50
+	}
+	if limit > 1000 {
+		limit = 1000
+	}
+	offset := input.Offset
+	if offset < 0 {
+		offset = 0
+	}
+
+	resp, err := h.svc.GetMessagesByChat(ctx, input.ChatID, limit, offset)
+	if err != nil {
+		log.Printf("[handlers] get messages: %v", err)
+		return nil, huma.Error500InternalServerError("failed to get messages")
+	}
+
+	return &GetMessagesOutput{Body: *resp}, nil
 }
 
 var upgrader = websocket.Upgrader{
@@ -38,11 +80,8 @@ var upgrader = websocket.Upgrader{
 }
 
 // HandleWebSocket upgrades the HTTP connection to WebSocket and manages the client lifecycle.
-//
-// It creates a background context for the connection, starts the write and read pumps,
-// and ensures the client is removed from the hub when the connection closes.
-func (h *ChatHandlerImpl) HandleWebSocket(c *gin.Context) {
-	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+func (h *ChatHandlerImpl) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
+	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("[handlers] websocket upgrade error: %v", err)
 		return
@@ -58,38 +97,4 @@ func (h *ChatHandlerImpl) HandleWebSocket(c *gin.Context) {
 		cancel()
 		h.svc.RemoveClient(client)
 	}()
-}
-
-const maxLimit = 1000
-
-// GetMessagesByChat returns paginated messages for the specified chat ID.
-// Query params: limit (default 50, max 1000), offset (default 0).
-func (h *ChatHandlerImpl) GetMessagesByChat(c *gin.Context) {
-	chatID := c.Param("chat_id")
-	if !chatIDPattern.MatchString(chatID) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid chat_id"})
-		return
-	}
-
-	limit, err := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	if err != nil || limit < 1 {
-		limit = 50
-	}
-	if limit > maxLimit {
-		limit = maxLimit
-	}
-
-	offset, err := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	if err != nil || offset < 0 {
-		offset = 0
-	}
-
-	resp, err := h.svc.GetMessagesByChat(c.Request.Context(), chatID, limit, offset)
-	if err != nil {
-		log.Printf("[handlers] get messages: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get messages"})
-		return
-	}
-
-	c.JSON(http.StatusOK, resp)
 }

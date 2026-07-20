@@ -21,7 +21,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gin-gonic/gin"
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humachi"
+	"github.com/go-chi/chi/v5"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -61,13 +63,15 @@ func main() {
 	chatService := service.NewChatService(hub, queuePublisher, pubsubSubscriber, messageRepository)
 	chatHandler := handlers.NewChatHandler(chatService)
 
-	ginRouter := gin.Default()
-	api.RegisterRoutes(ginRouter, chatHandler)
+	router := chi.NewRouter()
+
+	humaApi := humachi.New(router, huma.DefaultConfig("Go Realtime Chat", "1.0.0"))
+	api.RegisterRoutes(humaApi, router, chatHandler)
 
 	addr := ":" + strconv.Itoa(config.API.API_PORT)
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           ginRouter,
+		Handler:           humaApi.Adapter(),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
