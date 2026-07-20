@@ -30,7 +30,7 @@ func (r *MessageRepository) CreateNewMessage(ctx context.Context, payload domain
 }
 
 // GetMessagesByChat retrieves messages for a given chat ID with pagination.
-func (r *MessageRepository) GetMessagesByChat(ctx context.Context, chatID string, limit, offset int) ([]gen.Message, error) {
+func (r *MessageRepository) GetMessagesByChat(ctx context.Context, chatID string, limit, offset int) ([]domain.Message, error) {
 	if limit > math.MaxInt32 {
 		limit = math.MaxInt32
 	}
@@ -38,9 +38,25 @@ func (r *MessageRepository) GetMessagesByChat(ctx context.Context, chatID string
 		offset = math.MaxInt32
 	}
 
-	return r.q.GetMessagesByChat(ctx, gen.GetMessagesByChatParams{
+	genMsgs, err := r.q.GetMessagesByChat(ctx, gen.GetMessagesByChatParams{
 		ChatID: chatID,
 		Limit:  int32(limit),
 		Offset: int32(offset),
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	msgs := make([]domain.Message, len(genMsgs))
+	for i, m := range genMsgs {
+		msgs[i] = domain.Message{
+			ID:        m.ID,
+			UserID:    m.UserID,
+			ChatID:    m.ChatID,
+			Text:      m.Text,
+			CreatedAt: m.CreatedAt.Time,
+		}
+	}
+
+	return msgs, nil
 }

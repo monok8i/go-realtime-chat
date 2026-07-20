@@ -47,3 +47,9 @@ type PubSubPublisher interface {
 type PubSubSubscriber interface {
 	Subscribe(ctx context.Context, channel string) (<-chan *IncomingPubSubMessage, error)
 }
+
+// MessageRepository defines the interface for message persistence.
+type MessageRepository interface {
+	CreateNewMessage(ctx context.Context, payload Payload) error
+	GetMessagesByChat(ctx context.Context, chatID string, limit, offset int) ([]Message, error)
+}

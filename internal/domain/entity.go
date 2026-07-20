@@ -1,13 +1,24 @@
 // Package domain defines the core domain types and interfaces for the chat system.
 package domain
 
-import "time"
+import (
+	"time"
+)
 
 // Payload represents a chat message exchanged between clients through the system.
 type Payload struct {
 	UserID  int32  `json:"user_id"`
 	ChatID  string `json:"chat_id"`
 	Message string `json:"message"`
+}
+
+// Message represents a chat message received from database.
+type Message struct {
+	ID        int64
+	UserID    int32
+	ChatID    string
+	Text      string
+	CreatedAt time.Time
 }
 
 // MessageResponse represents a single message returned by the API.

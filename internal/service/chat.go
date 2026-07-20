@@ -1,4 +1,3 @@
-// Package service provides the core business logic for the chat system.
 package service
 
 import (
@@ -6,7 +5,6 @@ import (
 	"encoding/json"
 	"go-realtime-chat/internal/config"
 	"go-realtime-chat/internal/domain"
-	"go-realtime-chat/internal/infra/postgres"
 	"log"
 )
 
@@ -16,11 +14,11 @@ type ChatService struct {
 	hub              domain.Hub
 	publisher        domain.QueuePublisher
 	pubsubsubscriber domain.PubSubSubscriber
-	repo             *postgres.MessageRepository
+	repo             domain.MessageRepository
 }
 
 // NewChatService creates a new ChatService.
-func NewChatService(hub domain.Hub, publisher domain.QueuePublisher, pubsubsubscriber domain.PubSubSubscriber, repo *postgres.MessageRepository) *ChatService {
+func NewChatService(hub domain.Hub, publisher domain.QueuePublisher, pubsubsubscriber domain.PubSubSubscriber, repo domain.MessageRepository) *ChatService {
 	return &ChatService{hub: hub, publisher: publisher, pubsubsubscriber: pubsubsubscriber, repo: repo}
 }
 
@@ -78,13 +76,7 @@ func (cs *ChatService) GetMessagesByChat(ctx context.Context, chatID string, lim
 		Total:  len(msgs),
 	}
 	for _, m := range msgs {
-		resp.Messages = append(resp.Messages, domain.MessageResponse{
-			ID:        m.ID,
-			UserID:    m.UserID,
-			ChatID:    m.ChatID,
-			Text:      m.Text,
-			CreatedAt: m.CreatedAt.Time,
-		})
+		resp.Messages = append(resp.Messages, domain.MessageResponse(m))
 	}
 	return resp, nil
 }
